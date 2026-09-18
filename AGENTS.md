@@ -25,8 +25,9 @@ stevan/
 ├── AGENTS.md                  # Root agent instructions (this file)
 ├── README.md                  # Project overview
 ├── .gitignore                 # Monorepo git ignore rules
-├── bridge/                    # Step 1: Mineflayer bot connection, auth & Prismarine-viewer
-├── llm-controller/            # Step 2: LLM reasoning, chat interaction & function-calling
+├── mindcraft/                 # Core: Mindcraft LLM-Mineflayer autonomous agent framework
+├── bridge/                    # [DEPRECATED / FROZEN] Handcrafted legacy bridge (see legacy/handcrafted-bridge)
+├── llm-controller/            # [DEPRECATED / FROZEN] Handcrafted legacy controller (see legacy/handcrafted-bridge)
 ├── vpt-bridge/                # Step 3: STEVE-1 / VPT vision capture & continuous motor control
 ├── orchestrator/              # Step 4: Hierarchical orchestrator (LLM high-level + VPT motor skills)
 ├── rl-training/               # Step 5: Headless simulated RL fine-tuning pipeline
@@ -37,12 +38,13 @@ stevan/
 
 ### Module Purposes & Connections:
 
-1. **`/bridge`**:
-   - **Purpose**: Physical connection to the Minecraft server via Mineflayer, player authentication (offline/Microsoft), bot state tracking, and hosting the 3D first-person web viewer (`prismarine-viewer` on port 3000).
-   - **Connections**: Provides the live bot instance and world telemetry to `event-triggers`, `llm-controller`, and `orchestrator`. Executes primitive physical actions in the world.
-2. **`/llm-controller`**:
-   - **Purpose**: Cognitive reasoning brain and conversational interface. Translates player chat into structured game tool calls (`moveTo`, `mineBlock`, `placeBlock`, `craftItem`, `equipItem`, `chat`) with automatic free-tier model rotation and fallback chains.
-   - **Connections**: Receives world snapshots and chat messages from `bridge`; dispatches high-level actions back to `bridge` or serves as the strategic planner for `orchestrator`.
+0. **`/mindcraft`**:
+   - **Purpose**: Autonomous agent foundation based on [mindcraft-bots/mindcraft](https://github.com/mindcraft-bots/mindcraft). Handles Mineflayer server connection, A* pathfinding (`mineflayer-pathfinder`), player following (`!followPlayer`), block collection (`mineflayer-collectblock`), multi-provider LLM conversation/tool use, auto-defense modes (`self_defense`), unstuck watchdog, and 3D web viewer (`prismarine-viewer`).
+   - **Architectural Mandate**: **PROHIBITED TO REINVENT THE WHEEL**. Under no circumstance shall any agent rewrite pathfinder, `followPlayer`, or damage handling from scratch. Any custom behavior, identity, or prompt MUST be extended as a profile (`profiles/stevan.json`), skill (`src/agent/library/skills.js`), or mode (`src/agent/modes.js`) on top of Mindcraft.
+   - **Connections**: Serves as the discrete body, conversational brain, and reactive executor for `orchestrator`.
+
+1. **`/bridge`** & 2. **`/llm-controller`**:
+   - **Status**: **FROZEN / LEGACY**. The initial handcrafted glue code failed to properly integrate pathfinding and reactive trips. Preserved on git branch `legacy/handcrafted-bridge` strictly for historical reference. All active execution occurs through `/mindcraft`.
 3. **`/vpt-bridge`**:
    - **Purpose**: Low-level 20Hz visual motor policy using OpenAI VPT / STEVE-1. Captures the Minecraft window, processes 128x128 frames, runs neural policy inference, and injects continuous mouse and keyboard inputs via Windows direct input.
    - **Connections**: Serves as a specialized motor execution sub-policy for `orchestrator` when human-like fluid movement is needed (e.g. tree chopping, combat).
