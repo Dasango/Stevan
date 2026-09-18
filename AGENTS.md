@@ -48,7 +48,7 @@ Do not introduce new dependencies outside this approved list without prior revie
 
 | Module | Runtime | Approved Libraries / Tools | Prohibited Patterns |
 | :--- | :--- | :--- | :--- |
-| **`/bridge`** | Node.js (v18+ / v20+) | `mineflayer`, `prismarine-viewer`, `dotenv`, `mineflayer-pathfinder` | Custom packet-level auth, custom renderers |
+| **`/bridge`** | Node.js (v18+ / v20+) | `mineflayer`, `prismarine-viewer`, `canvas`, `dotenv`, `mineflayer-pathfinder` | Custom packet-level auth, custom renderers |
 | **`/llm-controller`** | Node.js (ESM) | `openai` (for OpenRouter/OpenAI/vLLM/Ollama), `zod`, `dotenv` | Vendor-locked proprietary SDKs without OpenAI fallback |
 | **`/vpt-bridge`** | Python 3.10 | `torch`, `torchvision`, `numpy`, `opencv-python`, `mss` or `bettercam`, `pydirectinput`, official STEVE-1 / VPT code | Custom neural architectures for vision/action |
 | **`/orchestrator`** | Node.js or Python | Hierarchical Options framework, async queues, WebSockets / IPC | Tightly coupling LLM prompting directly into VPT loops |

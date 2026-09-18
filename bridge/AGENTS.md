@@ -12,6 +12,7 @@ The `/bridge` module is responsible for:
 - **Approved Packages**:
   - `mineflayer`: Core Minecraft client bot.
   - `prismarine-viewer`: Web-based first-person viewer.
+  - `canvas`: Native graphic rendering backend required by prismarine-viewer.
   - `dotenv`: Secrets and configuration loader.
   - `mineflayer-pathfinder`: Optional navigation primitive.
 - **Prohibited**:
