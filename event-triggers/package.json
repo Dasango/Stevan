@@ -1,0 +1,17 @@
+{
+  "name": "@stevan/event-triggers",
+  "version": "0.1.0",
+  "description": "Pure event-driven reactive failure detection and interrupt dispatcher for Stevan",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "eventemitter2": "^6.4.9"
+  }
+}
