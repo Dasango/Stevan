@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stevan-vpt-bridge"
+version = "0.1.0"
+description = "VPT / STEVE-1 neural vision-action execution bridge for Minecraft"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "numpy>=1.24.0",
+    "opencv-python>=4.8.0",
+    "mss>=9.0.0",
+    "pydirectinput>=1.0.4",
+    "python-dotenv>=1.0.0",
+]
