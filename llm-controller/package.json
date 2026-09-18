@@ -1,0 +1,19 @@
+{
+  "name": "@stevan/llm-controller",
+  "version": "0.1.0",
+  "description": "LLM function-calling and cross-provider action schema for Stevan bot",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "openai": "^4.86.1",
+    "zod": "^3.24.2"
+  }
+}
