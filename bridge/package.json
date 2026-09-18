@@ -1,0 +1,20 @@
+{
+  "name": "@stevan/bridge",
+  "version": "0.1.0",
+  "description": "Mineflayer bot connection, authentication, and Prismarine viewer bridge",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "mineflayer": "^4.23.0",
+    "mineflayer-pathfinder": "^2.4.5",
+    "prismarine-viewer": "^1.29.0"
+  }
+}
