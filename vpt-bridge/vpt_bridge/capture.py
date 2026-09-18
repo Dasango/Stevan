@@ -27,12 +27,16 @@ class ScreenCapturer:
         if mock_frame is not None:
             return mock_frame
 
-        # Capture BGRA screen buffer from mss
-        sct_img = self.sct.grab(self.monitor)
-        # Convert to numpy array [H, W, 4] (BGRA) and drop alpha -> RGB
-        bgra = np.array(sct_img, dtype=np.uint8)
-        rgb = bgra[:, :, [2, 1, 0]]
-        return rgb
+        try:
+            sct_img = self.sct.grab(self.monitor)
+            bgra = np.array(sct_img, dtype=np.uint8)
+            rgb = bgra[:, :, [2, 1, 0]]
+            return rgb
+        except Exception:
+            # Fallback for headless environments, locked desktops, or non-display sessions
+            w = int(self.monitor.get("width", 640))
+            h = int(self.monitor.get("height", 360))
+            return np.zeros((h, w, 3), dtype=np.uint8)
 
     def close(self):
         """Releases the mss capture context."""
