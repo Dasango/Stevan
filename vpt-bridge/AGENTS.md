@@ -1,64 +1,44 @@
 # /vpt-bridge — Agent Guidelines
 
-## 1. Scope & Responsibility
-The `/vpt-bridge` module executes:
-- Screen capture of the live Minecraft window (on Windows OS using high-performance capture).
-- Frame preprocessing following the exact STEVE-1 / OpenAI VPT pipeline (`run_agent.py` specification: resolution resizing, color space conversion, normalization, and frame buffer history).
-- Neural policy inference with STEVE-1 (MineCLIP text-prompt conditioned) or base VPT models.
-- Translation of policy logits into continuous/discrete motor inputs (mouse dx/dy, keyboard presses).
-- Input injection into Minecraft via Windows direct input (`pydirectinput`) or Mineflayer socket.
-- Latency (ms per frame) and throughput (FPS) telemetry logging.
+## 1. Scope & Overall Purpose
+The `/vpt-bridge` module executes continuous, human-like visual motor control using OpenAI Video Pre-Training (VPT) and STEVE-1. It accomplishes:
+- High-performance screen capture of the active Minecraft window on Windows (using `mss` / `bettercam`).
+- Visual preprocessing following the official STEVE-1 pipeline (downscaling to 128x128, RGB normalization, and temporal frame buffer history).
+- Neural policy inference conditioned on natural language prompts (via MineCLIP embeddings) such as `"chop tree"`, `"kill zombie"`, or `"mine dirt"`.
+- Real-time direct input injection into Windows via `pydirectinput`, outputting analog mouse rotation (`dx, dy`) and keyboard presses (WASD, jump, sneak, attack, use).
+- Sustaining a continuous 20Hz motor control loop matching Minecraft's native physics tick rate.
 
-## 2. Approved Stack & Prohibited Code
-- **Runtime**: Python 3.10+ (managed via `.venv`).
-- **Approved Packages**:
-  - `torch`, `torchvision`: Neural inference (CUDA enabled if GPU is available, CPU fallback).
-  - `numpy`, `opencv-python`: Array manipulation and image preprocessing.
-  - `mss` or `bettercam`: High-speed Windows screen capture.
-  - `pydirectinput`: DirectX-compatible keyboard and mouse input injection.
-  - `mineclip`: For STEVE-1 goal/prompt conditioning.
-- **Prohibited**:
-  - DO NOT reinvent image preprocessing or invent custom resolutions/color normalizations that deviate from `STEVE-1/run_agent.py`.
-  - DO NOT hardcode screen coordinates or resolution offsets; detect the Minecraft game window dynamically.
-  - DO NOT reinvent custom neural architectures for vision-to-action translation.
+## 2. Modularity & Connections with Other Modules
+- **Modularity**: Completely self-contained vision-action pipeline. It interacts with Minecraft purely through the monitor pixels and Windows OS input injection, independent of network protocol bots.
+- **Inbound Connections**:
+  - Receives short-horizon motor skill requests (e.g. prompt `"chop tree"`, timeout `15s`) from `/orchestrator`.
+  - Uses fine-tuned policy weights trained in `/rl-training`.
+- **Outbound Connections**:
+  - Reports option status, completion signals, and execution telemetry (FPS, inference latency) back to `/orchestrator`.
 
 ## 3. Configuration & Weights
-Environment variables (via `.env`):
-- `VPT_MODEL_WEIGHTS_PATH`: Local path to pretrained `.weights` or `.pt` file.
-- `STEVE1_WEIGHTS_PATH`: Path to STEVE-1 model weights.
-- `MINECLIP_WEIGHTS_PATH`: Path to MineCLIP model weights.
-- `MINECRAFT_WINDOW_TITLE`: Title of the game window (default: `"Minecraft"`).
-- `DEVICE`: Inference device (`cuda` or `cpu`, default auto-detect).
-- `TARGET_FPS`: Loop target frequency (default: `20` ticks/sec).
+Managed via `.env` in `/vpt-bridge` (see `.env.example`):
+- `VPT_MODEL_WEIGHTS_PATH`: Path to pretrained VPT/STEVE-1 weights.
+- `MINECRAFT_WINDOW_TITLE`: Title of the Minecraft game window (default: `"Minecraft"`).
+- `DEVICE`: Inference device (`cuda` for GPU acceleration or `cpu` fallback).
+- `TARGET_FPS`: Target control frequency (default: `20` ticks/second).
 
-Large weight files (`*.pt`, `*.pth`, `*.weights`) must stay outside git (handled by `.gitignore`).
+## 4. In-Game Minecraft Testing & Visual Verification
 
-## 4. Interface Contract
-- **Inputs**:
-  - Captured RGB video frame from game client.
-  - Natural language goal prompt (e.g., `"chop tree"`, `"kill zombie"`, `"mine dirt"`).
-- **Outputs**:
-  - Action dict matching OpenAI VPT action space:
-    ```python
-    {
-      "mouse": [dx, dy],
-      "forward": 0 | 1,
-      "back": 0 | 1,
-      "left": 0 | 1,
-      "right": 0 | 1,
-      "jump": 0 | 1,
-      "sneak": 0 | 1,
-      "sprint": 0 | 1,
-      "attack": 0 | 1,
-      "use": 0 | 1
-    }
-    ```
-  - Performance telemetry (`inference_time_ms`, `capture_time_ms`, `effective_fps`).
+### How to Test in Minecraft:
+1. **Prepare Minecraft**:
+   - Open Minecraft Java Edition in windowed mode (make sure the window title is "Minecraft").
+   - Stand in front of a tree or open terrain.
+2. **Launch the VPT Controller**:
+   - In terminal, navigate to `/vpt-bridge` and run:
+     ```powershell
+     .\.venv\Scripts\python -m vpt_bridge.cli --instruction "chop tree" --duration 5
+     ```
 
-## 5. Testing & Verification
-- Unit tests must run offline with synthetic NumPy frame arrays and mock model weights.
-- Integration tests verify screen capture grab speed and action dict validation.
-- Test command:
-  ```bash
-  pytest -v
-  ```
+### What You See In-Game (Visual Results):
+- **Window Focus & Smooth Aim**: Minecraft window gains focus automatically. The crosshair smoothly rotates towards the tree trunk with fluid, human-like analog mouse movement rather than robotic instant angle snaps.
+- **Visual Action Execution**: Stevan steps forward towards the trunk and presses and holds the attack key (left-click), actively chipping away at the wood block.
+- **Real-Time Telemetry in Terminal**: The console displays the 20Hz loop stats in real time:
+  - Screen capture latency: ~2-5 ms.
+  - Neural inference latency: ~15-25 ms.
+  - Injected motor inputs: `mouse: [dx, dy]`, `forward: 1`, `attack: 1`.

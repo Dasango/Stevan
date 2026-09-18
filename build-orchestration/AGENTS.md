@@ -1,55 +1,50 @@
 # /build-orchestration — Agent Guidelines
 
-## 1. Scope & Responsibility
-The `/build-orchestration` module enables autonomous in-world construction:
-- Parses industry-standard Minecraft schematic formats (`.schem`, `.litematic`) using approved parsers.
-- Computes Bill of Materials (BOM) and performs inventory reconciliation.
-- Performs environmental feasibility checks (sufficient clearance, valid foundation, biome resource availability).
-- Delegates missing resource gathering tasks to `/orchestrator` / `/vpt-bridge`.
-- Generates topologically valid block placement sequences (foundation first, gravity support, scaffolding where needed) using Mineflayer building primitives.
-- Explicitly handles infeasible conditions by returning actionable replanning reports to `/llm-controller`.
+## 1. Scope & Overall Purpose
+The `/build-orchestration` module enables Stevan to construct real buildings autonomously in Minecraft. It accomplishes:
+- Parsing industry-standard Minecraft 3D voxel schematics (`.schem` Sponge format and `.litematic`).
+- Computing an exact Bill of Materials (BOM) and reconciling it against Stevan's current inventory.
+- Conducting environmental feasibility checks before placing a single block: verifying the construction bounding box is clear of obstructions and the foundation ground is solid.
+- Generating topologically valid layer-by-layer placement orders (foundation first, gravity-dependent blocks supported, scaffolding when necessary).
+- Reporting missing material deficits to trigger resource-gathering subgoals rather than failing silently.
 
-## 2. Approved Stack & Prohibited Code
-- **Runtime**: Node.js (>= 18.0.0, `"type": "module"`).
-- **Approved Packages**:
-  - `prismarine-schematic`: For reading and writing standard Sponge `.schem` files.
-  - `prismarine-world`: Block and chunk coordinate manipulation.
-  - `mineflayer-builder` / `mineflayer-pathfinder`: Placement and positioning.
-- **Prohibited**:
-  - DO NOT invent custom ad-hoc JSON or text blueprint formats; use standard `.schem` or `.litematic`.
-  - DO NOT attempt to place blocks in mid-air violating Minecraft physics or support requirements.
-  - DO NOT fail silently when materials are missing; fail fast with a structured feasibility deficit report.
+## 2. Modularity & Connections with Other Modules
+- **Modularity**: Dedicated construction architect. Operates independently from low-level network packets by utilizing standard schematic representations.
+- **Inbound Connections**:
+  - Receives blueprint build requests (schematic file and target world anchor coordinates `{x, y, z}`) from `/orchestrator` or player chat.
+  - Receives real-time inventory counts and placement reach from `/bridge`.
+- **Outbound Connections**:
+  - If required materials are lacking, triggers automated resource-gathering missions via `/orchestrator` and `/vpt-bridge`.
+  - Dispatches validated, step-by-step block placement commands to `/bridge` to physically place blocks in the Minecraft world.
 
-## 3. Placement & Feasibility Rules
-1. **Support Invariant**: Any block requiring support beneath it must have its foundation block placed and verified first.
-2. **Clearance Check**: The bounding box $X \times Y \times Z$ must be verified for obstructions before commencing placement.
-3. **Inventory Reconciler**: If required count $N_{\text{req}} > N_{\text{inv}}$, return a deficit list:
-   ```json
-   {
-     "status": "INFEASIBLE_MISSING_MATERIALS",
-     "missing": [
-       { "item": "oak_planks", "needed": 16, "available": 4, "deficit": 12 }
-     ]
-   }
-   ```
+## 3. Construction Invariants
+1. **Foundation Invariant**: Every block requiring support below must have its foundation block placed and verified before proceeding.
+2. **Clearance Check**: The bounding box $X \times Y \times Z$ must be surveyed for tree branches or dirt hills before building starts.
+3. **Inventory Reconciler**: If required count $N_{\text{req}} > N_{\text{inv}}$, Stevan outputs a structured deficit report to prompt resource gathering.
 
-## 4. Interface Contract
-- **Inputs**:
-  - Schematic file buffer or path.
-  - Anchor point `{ x, y, z }` and rotation (`0`, `90`, `180`, `270`).
-- **Outputs**:
-  - Feasibility validation report.
-  - Progress events (placed block count, total blocks, current coordinates).
-- **Events Emitted**:
-  - `build:started`: Build initiated.
-  - `build:progress`: Block placed successfully.
-  - `build:interrupted`: Block placement obstructed or failed.
-  - `build:completed`: All schematic blocks verified in world.
+## 4. In-Game Minecraft Testing & Visual Verification
 
-## 5. Testing & Verification
-- Unit tests verify schematic loading, BOM extraction, and topological placement sequence calculation using a small synthetic 3x3 box `.schem`.
-- Integration tests simulate virtual placement in a mock prismarine world.
-- Test command:
-  ```bash
-  npm test
-  ```
+### How to Test in Minecraft:
+1. **Prepare Minecraft**:
+   - Open your world to LAN on port `25565` (Cheats ON).
+   - Give Stevan the necessary building supplies:
+     ```minecraft
+     /give StevanBot cobblestone 64
+     /give StevanBot oak_planks 32
+     ```
+2. **Launch Construction**:
+   - In terminal, navigate to `/build-orchestration` and run:
+     ```bash
+     npm start
+     ```
+
+### What You See In-Game (Visual Results):
+- **Surveying Ground**: Stevan walks over to the anchor coordinates and looks down at the terrain to verify ground stability.
+- **Progress Announcements in Chat**:
+  `[StevanBot] Terreno verificado. Iniciando construcción de Refugio 3x3 (42 bloques)...`
+- **Watching the Structure Rise**:
+  - Stevan places the cobblestone foundation block by block, stepping back so he doesn't block his own placements.
+  - He builds the four corner pillars out of oak planks up to 3 blocks high.
+  - He fills the walls, leaving a 1x2 opening for a doorway.
+  - He places the ceiling slabs/blocks on top, completing the structure with 100% fidelity to the blueprint.
+- **Completion Confirmation**: Stevan steps out of the doorway, looks at the finished house, and chats: `[StevanBot] ¡Construcción finalizada con éxito!`

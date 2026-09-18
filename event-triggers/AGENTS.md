@@ -1,55 +1,40 @@
 # /event-triggers — Agent Guidelines
 
-## 1. Scope & Responsibility
-The `/event-triggers` module provides reactive safety interrupts for the bot:
-- Listens directly to native Mineflayer events (`health`, `entityHurt`, `entitySpawn`, `physicsTick`, etc.).
-- Implements strict threshold-based tripwires (e.g., sudden damage, hostile mob entry within safety radius, rapid downward velocity indicating a fall).
-- Generates an immediate delta state snapshot upon tripwire firing.
-- Emits interrupt events to `/orchestrator` to suspend current low-level action and return decision authority to `/llm-controller`.
-- **Absolute Rule**: Zero polling loops (`setInterval`, busy-wait loops checking bot status are strictly forbidden).
+## 1. Scope & Overall Purpose
+The `/event-triggers` module is Stevan's autonomic nervous system and emergency reflex guard. It accomplishes:
+- Listening directly to native Mineflayer game events (`health`, `entityHurt`, `entitySpawn`, `physicsTick`) with zero performance overhead.
+- Enforcing strict numerical safety tripwires (e.g. sudden damage $\ge 4.0$ HP, hostile mob proximity $\le 6$ blocks, falling velocity indicating a drop, lava/fire contact).
+- Generating an instantaneous delta state snapshot (bot coordinates, health, offending entity type, distance) at the exact moment a threshold is breached.
+- Emitting immediate high-priority interrupt signals to abort any running action in $< 5$ milliseconds.
+- **Strict Rule**: Zero polling loops (`setInterval` or continuous busy loops checking health are prohibited; all checks must be event-driven).
 
-## 2. Approved Stack & Prohibited Code
-- **Runtime**: Node.js (>= 18.0.0, `"type": "module"`).
-- **Approved Packages**:
-  - Native Node.js `EventEmitter` / Mineflayer event listeners.
-  - `eventemitter2`: For wildcard and structured event dispatching if needed.
-- **Prohibited**:
-  - DO NOT implement polling (`setInterval` / `setTimeout` loops to check `bot.health` or entity distance). All logic must hook into native Mineflayer event emitters.
-  - DO NOT make autonomous reaction decisions inside the trigger (the trigger only interrupts and captures snapshot; the LLM or orchestrator decides what to do).
-  - DO NOT spam duplicate interrupts; enforce tripwire debounce cooldowns.
+## 2. Modularity & Connections with Other Modules
+- **Modularity**: Completely decoupled watchdog. Consumes zero CPU cycles when the game state is stable.
+- **Inbound Connections**:
+  - Hooks into the active Mineflayer `bot` instance emitted by `/bridge`.
+- **Outbound Connections**:
+  - Dispatches immediate emergency interrupts (`interrupt:fired`) to `/orchestrator` and `/llm-controller` to preempt current tasks and trigger survival routines (retreat, shield, eat food).
 
-## 3. Pre-defined Tripwire Thresholds
-Tripwires must follow predefined, documented numerical thresholds:
-- `TRIPWIRE_HEALTH_DROP`: Damage $\ge 4.0$ HP (2 hearts) within $\le 5$ physics ticks.
-- `TRIPWIRE_HOSTILE_PROXIMITY`: Hostile mob within $\le 6.0$ blocks radius.
+## 3. Predefined Tripwire Thresholds
+- `TRIPWIRE_HEALTH_DROP`: Damage $\ge 4.0$ HP (2 full hearts) in $\le 5$ physics ticks.
+- `TRIPWIRE_HOSTILE_PROXIMITY`: Hostile entity enters $\le 6.0$ blocks radius.
 - `TRIPWIRE_FALL_VELOCITY`: Downward velocity $v_y \le -0.6$ blocks/tick with distance to ground $> 3$ blocks.
-- `TRIPWIRE_SUFFOCATION_OR_LAVA`: Bot submerged in lava, fire, or solid block for $\ge 2$ ticks.
+- `TRIPWIRE_SUFFOCATION_OR_LAVA`: Bot in lava, fire, or suffocating block for $\ge 2$ ticks.
 
-## 4. Interface Contract
-- **Inputs**:
-  - Active Mineflayer `bot` instance from `/bridge`.
-- **Outputs**:
-  - Interrupt signal payload emitted to `/orchestrator`:
-    ```json
-    {
-      "triggerId": "TRIPWIRE_HOSTILE_PROXIMITY",
-      "severity": "critical",
-      "timestamp": 1773789000,
-      "snapshot": {
-        "botPosition": { "x": 10.5, "y": 64, "z": -22.1 },
-        "health": 16.0,
-        "causeEntity": { "type": "skeleton", "distance": 4.8, "position": { "x": 12.0, "y": 64, "z": -18.0 } }
-      }
-    }
-    ```
-- **Events Emitted**:
-  - `interrupt:fired`: Dispatched immediately when a threshold is breached.
-  - `interrupt:cleared`: Dispatched when condition is no longer present.
+## 4. In-Game Minecraft Testing & Visual Verification
 
-## 5. Testing & Verification
-- Unit tests emit mock Mineflayer events to verify tripwire trigger timing, debounce windows, and snapshot construction.
-- Measure false positives/negatives in staged scenarios (simulated fall, simulated hurt event).
-- Test command:
-  ```bash
-  npm test
-  ```
+### How to Test in Minecraft:
+1. **Prepare Minecraft**:
+   - Open your world to LAN on port `25565` (Cheats ON).
+   - Have Stevan connected and performing a peaceful task (such as walking across a field or mining dirt).
+2. **Trigger an Emergency in Live Game**:
+   - Hit Stevan with an iron sword, or spawn a Creeper right next to him:
+     ```minecraft
+     /summon creeper ~1.5 ~ ~
+     ```
+
+### What You See In-Game (Visual Results):
+- **Instantaneous Task Abort**: Within milliseconds of the hit or Creeper spawn, Stevan completely halts his active pathfinding or mining action.
+- **Visual Alert in Chat**: Stevan immediately reports the emergency in Minecraft chat:
+  `[StevanBot] ¡ALERTA! Peligro detectado: creeper a 1.5 bloques. Interrumpiendo tarea actual.`
+- **Survival Evasion**: Rather than mindlessly standing still or continuing to mine blocks while exploding, Stevan immediately sprints in reverse away from the Creeper's fuse radius or raises his shield to absorb the blast.

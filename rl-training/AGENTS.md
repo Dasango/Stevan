@@ -1,46 +1,44 @@
 # /rl-training — Agent Guidelines
 
-## 1. Scope & Responsibility
-The `/rl-training` module manages:
-- Offline and simulated reinforcement learning (RL) fine-tuning of VPT / STEVE-1 policies for targeted subtasks (e.g., hostile mob combat).
-- Parallel headless simulation environments (MineRL / MineDojo / simulated Gym environment).
-- Fixed reward specification and pre-defined acceptance thresholds (defined prior to training).
-- Baseline benchmarking of the zero-shot base model before training.
-- Checkpointing and evaluation against separate **holdout** seeds/scenarios to guard against overfitting.
+## 1. Scope & Overall Purpose
+The `/rl-training` module is the specialized neural skill laboratory. It accomplishes:
+- Fine-tuning pretrained OpenAI VPT and STEVE-1 neural policies inside headless, accelerated Minecraft simulation environments (Gymnasium / MineRL).
+- Applying standard Proximal Policy Optimization (PPO via `stable-baselines3`) to master hard reflex skills where base foundation models struggle (e.g., hostile mob combat, dodging skeleton arrows, shield parrying).
+- Defining strict, verifiable reward functions (e.g., maximizing damage dealt to enemies while penalizing damage taken by the bot).
+- Benchmarking trained models on separate holdout environment seeds to ensure skills generalize to unseen terrain.
+- Exporting trained policy checkpoints (`fine_tuned_best.zip`) ready for direct in-game execution.
 
-## 2. Approved Stack & Prohibited Code
-- **Runtime**: Python 3.10+ (managed via `.venv`).
-- **Approved Packages**:
-  - `stable-baselines3`: Standard PPO/SAC implementations.
-  - `gymnasium` / `gym`: Environment standard.
-  - `minerl` or `minedojo`: Simulated Minecraft environment interface.
-  - `torch`, `torchvision`: Neural training and policy optimization.
-  - `tensorboard`: Training curves and loss monitoring.
-- **Prohibited**:
-  - DO NOT train on a live Minecraft production server. Training must run in simulated/headless instances.
-  - DO NOT hand-code PPO or RL optimization algorithms from scratch; use `stable-baselines3` or OpenAI's VPT fine-tuning scripts.
-  - DO NOT modify the reward function or success metrics post-hoc after observing training curves.
-  - DO NOT evaluate solely on the training environment seeds.
+## 2. Modularity & Connections with Other Modules
+- **Modularity**: Completely isolated offline training environment. It runs accelerated simulation loops without touching the live Minecraft production server.
+- **Inbound Connections**:
+  - Takes foundation pretrained weights (`.pt` or `.weights`) as a starting point.
+- **Outbound Connections**:
+  - Directly feeds fine-tuned neural checkpoints (`fine_tuned_best.zip`) to `/vpt-bridge/weights/`, empowering `/vpt-bridge` and `/orchestrator` with expert in-game combat and survival skills.
 
-## 3. Configuration & Metrics Protocol
-- **Reward Function Document**: Every training run must have its reward function explicitly documented in `/rl-training/specs/` before initiating training.
-- **Success Criteria**: Define target metric thresholds before run start:
-  - Example: "Reduce average time-to-kill from $T_{\text{baseline}}$ seconds to $< T_{\text{target}}$ seconds across 50 holdout episodes with $> 90\%$ survival rate."
-- **Checkpoints**: Saved every $K$ steps to `checkpoints/`.
-- **Logs**: TensorBoard logs stored in `runs/`.
+## 3. Training Configuration & Checkpoints
+Managed via `.env` in `/rl-training` (see `.env.example`):
+- `TOTAL_TIMESTEPS`: Total training steps (e.g., `50000`).
+- `CHECKPOINT_DIR`: Output folder for trained weights (default: `checkpoints/`).
+- `TENSORBOARD_LOG_DIR`: Directory for real-time loss and reward graphs (default: `runs/`).
 
-## 4. Interface Contract
-- **Inputs**:
-  - Pretrained foundation policy weights (`.weights` or `.pt`).
-  - Environment task configuration (mob type, spawn distance, inventory, arena geometry).
-- **Outputs**:
-  - Fine-tuned policy weights checkpoint (`fine_tuned_best.pt`).
-  - Benchmark report comparing baseline vs fine-tuned performance on holdout test scenarios.
+## 4. In-Game Minecraft Testing & Visual Verification
 
-## 5. Testing & Verification
-- Unit tests verify environment step/reset functions, reward calculation determinism, and tensor shape compatibility without launching long training runs.
-- Run a 10-step dummy training run during CI to verify pipeline stability.
-- Test command:
-  ```bash
-  pytest -v
-  ```
+### How to Test in Minecraft:
+1. **Deploy Trained Weights**:
+   - Ensure a trained combat policy checkpoint is placed in `/vpt-bridge/weights/`.
+2. **Prepare Minecraft**:
+   - Open your world to LAN on port `25565` (Cheats ON).
+   - Give Stevan an iron sword and shield:
+     `/give StevanBot iron_sword` and `/give StevanBot shield`.
+3. **Trigger Combat Scenario**:
+   - Spawn a hostile mob near Stevan:
+     ```minecraft
+     /summon zombie ~3 ~ ~
+     ```
+
+### What You See In-Game (Visual Results):
+- **Fluid Combat Reflexes**: Rather than walking in a rigid straight line or standing still like a basic scripted bot, Stevan executes fluid combat maneuvers:
+  - *Strafing & Spacing*: Stevan circles around the zombie to stay out of its direct forward reach.
+  - *Timed Critical Hits*: Stevan pauses between swings to let the Minecraft weapon attack cooldown recharge fully, dealing maximum damage with sweep particles.
+  - *Shield Parrying*: When the zombie lunges forward, Stevan raises his shield to block incoming damage, then counters with a strike.
+- **Flawless Victory**: The hostile mob is defeated within seconds, and Stevan takes zero damage or retains nearly full hearts.
