@@ -6,6 +6,8 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
+    "chat": "node src/cli-chat.js",
+    "live": "node src/live.js",
     "test": "node --test"
   },
   "engines": {
